@@ -17,6 +17,7 @@
 package com.navercorp.pinpoint.web.alarm.checker;
 
 
+import com.navercorp.pinpoint.web.alarm.AlarmMessageConstant;
 import com.navercorp.pinpoint.web.alarm.collector.DataCollector;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
 import org.slf4j.Logger;
@@ -34,35 +35,35 @@ public abstract class AlarmChecker<T> {
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
     protected final DataCollector dataCollector;
     protected final Rule rule;
-    protected boolean detected = false;
     protected final String unit;
-    
+    protected boolean detected = false;
+
     protected AlarmChecker(Rule rule, String unit, DataCollector dataCollector) {
         this.rule = rule;
         this.unit = unit;
         this.dataCollector = dataCollector;
     }
-    
+
     public boolean isDetected() {
         return detected;
     }
-    
+
     public Rule getRule() {
         return rule;
     }
-    
+
     public boolean isSMSSend() {
         return rule.isSmsSend();
     }
-    
+
     public boolean isEmailSend() {
         return rule.isEmailSend();
     }
-    
+
     public String getuserGroupId() {
         return rule.getUserGroupId();
     }
-    
+
     public String getUnit() {
         return unit;
     }
@@ -74,17 +75,17 @@ public abstract class AlarmChecker<T> {
         detected = decideResult(getDetectedValue());
         logger.info("{} result is {} for application ({}). value is {}. (threshold : {}).", this.getClass().getSimpleName(), detected, rule.getApplicationId(), getDetectedValue(), rule.getThreshold());
     }
-    
+
     public List<String> getSmsMessage() {
         List<String> messages = new LinkedList<>();
-        messages.add(String.format("[PINPOINT Alarm - %s] %s is %s%s (Threshold : %s%s)", rule.getApplicationId(), rule.getCheckerName(), getDetectedValue(), unit, rule.getThreshold(), unit));
+        messages.add(String.format(AlarmMessageConstant.ALARM_CHECKER_SMS, rule.getApplicationId(), rule.getCheckerName(), getDetectedValue(), unit, rule.getThreshold(), unit));
         return messages;
     }
-    
+
     public String getEmailMessage() {
-        return String.format("%s value is %s%s during the past 5 mins.(Threshold : %s%s)<br>", rule.getCheckerName(), getDetectedValue(), unit, rule.getThreshold(), unit);
+        return String.format(AlarmMessageConstant.ALARM_CHECKER_EMAIL, rule.getCheckerName(), getDetectedValue(), unit, rule.getThreshold(), unit);
     }
-    
+
     protected abstract T getDetectedValue();
 
 }

@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.web.alarm.checker;
 
+import com.navercorp.pinpoint.web.alarm.AlarmMessageConstant;
 import com.navercorp.pinpoint.web.alarm.collector.AgentEventDataCollector;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
 
@@ -50,7 +51,7 @@ public class DeadlockChecker extends AgentChecker<Boolean> {
         List<String> messages = new LinkedList<>();
 
         for (Map.Entry<String, Boolean> detected : detectedAgents.entrySet()) {
-            messages.add(String.format("[PINPOINT Alarm - %s] Deadlock thread detected", detected.getKey()));
+            messages.add(String.format(AlarmMessageConstant.DEAD_LOCK_CHECKER_SMS, detected.getKey()));
         }
 
         return messages;
@@ -60,7 +61,7 @@ public class DeadlockChecker extends AgentChecker<Boolean> {
     public String getEmailMessage() {
         StringBuilder message = new StringBuilder();
         for (Map.Entry<String, Boolean> detected : detectedAgents.entrySet()) {
-            message.append(String.format(" Value of agent(%s) has deadlocked thread during the past 5 mins.", detected.getKey()));
+            message.append(String.format(AlarmMessageConstant.DEAD_LOCK_CHECKER_EMAIL, detected.getKey()));
             message.append("<br>");
         }
         return message.toString();

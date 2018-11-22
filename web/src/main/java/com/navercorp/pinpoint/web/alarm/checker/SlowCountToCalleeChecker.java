@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.web.alarm.checker;
 
+import com.navercorp.pinpoint.web.alarm.AlarmMessageConstant;
 import com.navercorp.pinpoint.web.alarm.collector.MapStatisticsCallerDataCollector;
 import com.navercorp.pinpoint.web.alarm.collector.MapStatisticsCallerDataCollector.DataCategory;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
@@ -24,20 +25,20 @@ import com.navercorp.pinpoint.web.alarm.vo.Rule;
  * @author minwoo.jung
  */
 public class SlowCountToCalleeChecker extends LongValueAlarmChecker {
-    
+
     public SlowCountToCalleeChecker(MapStatisticsCallerDataCollector dataCollector, Rule rule) {
         super(rule, "", dataCollector);
     }
-    
+
     @Override
     protected Long getDetectedValue() {
         String calleName = rule.getNotes();
-        return ((MapStatisticsCallerDataCollector)dataCollector).getCount(calleName, DataCategory.SLOW_COUNT);
+        return ((MapStatisticsCallerDataCollector) dataCollector).getCount(calleName, DataCategory.SLOW_COUNT);
     }
-    
+
     @Override
     public String getEmailMessage() {
-        return String.format("%s value is %s%s during the past 5 mins.(Threshold : %s%s) %s For From '%s' To '%s'.<br>", rule.getCheckerName(), getDetectedValue(), unit, rule.getThreshold(), unit, rule.getCheckerName(), rule.getApplicationId(), rule.getNotes());
+        return String.format(AlarmMessageConstant.SLOW_COUNT_TO_CALLEE_CHECKER_EMAIL, rule.getCheckerName(), getDetectedValue(), unit, rule.getThreshold(), unit, rule.getCheckerName(), rule.getApplicationId(), rule.getNotes());
     }
 
 }

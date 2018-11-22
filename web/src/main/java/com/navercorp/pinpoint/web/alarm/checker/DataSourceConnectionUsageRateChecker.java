@@ -16,6 +16,7 @@
 
 package com.navercorp.pinpoint.web.alarm.checker;
 
+import com.navercorp.pinpoint.web.alarm.AlarmMessageConstant;
 import com.navercorp.pinpoint.web.alarm.collector.DataSourceDataCollector;
 import com.navercorp.pinpoint.web.alarm.vo.DataSourceAlarmVO;
 import com.navercorp.pinpoint.web.alarm.vo.Rule;
@@ -63,7 +64,7 @@ public class DataSourceConnectionUsageRateChecker extends AgentChecker<List<Data
         for (Map.Entry<String, List<DataSourceAlarmVO>> detected : detectedAgents.entrySet()) {
             for (DataSourceAlarmVO dataSourceAlarmVO : detected.getValue()) {
                 if (decideResult0(dataSourceAlarmVO)) {
-                    messages.add(String.format("[PINPOINT Alarm - %s] DataSource %s connection pool usage %s%s (Threshold : %s%s)", detected.getKey(), dataSourceAlarmVO.getDatabaseName(), dataSourceAlarmVO.getConnectionUsedRate(), unit, rule.getThreshold(), unit));
+                    messages.add(String.format(AlarmMessageConstant.DATA_SOURCE_CONNECTION_USAGE_RATE_CHECKER_SMS, detected.getKey(), dataSourceAlarmVO.getDatabaseName(), dataSourceAlarmVO.getConnectionUsedRate(), unit, rule.getThreshold(), unit));
                 }
             }
         }
@@ -77,7 +78,7 @@ public class DataSourceConnectionUsageRateChecker extends AgentChecker<List<Data
         for (Map.Entry<String, List<DataSourceAlarmVO>> detected : detectedAgents.entrySet()) {
             for (DataSourceAlarmVO dataSourceAlarmVO : detected.getValue()) {
                 if (decideResult0(dataSourceAlarmVO)) {
-                    message.append(String.format(" Value of agent(%s) has %s%s(DataSource %s connection pool usage) during the past 5 mins.(Threshold : %s%s)", detected.getKey(), dataSourceAlarmVO.getConnectionUsedRate(), unit, dataSourceAlarmVO.getDatabaseName(), rule.getThreshold(), unit));
+                    message.append(String.format(AlarmMessageConstant.DATA_SOURCE_CONNECTION_USAGE_RATE_CHECKER_EMAIL, detected.getKey(), dataSourceAlarmVO.getConnectionUsedRate(), unit, dataSourceAlarmVO.getDatabaseName(), rule.getThreshold(), unit));
                     message.append("<br>");
                 }
             }
