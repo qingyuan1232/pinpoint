@@ -35,27 +35,21 @@ import java.util.Map;
 
 /**
  * @author Jongho Moon
- *
  */
 class PinpointStarter {
 
-    private final BootLogger logger = BootLogger.getLogger(PinpointStarter.class.getName());
-
     public static final String AGENT_TYPE = "AGENT_TYPE";
-
     public static final String DEFAULT_AGENT = "DEFAULT_AGENT";
     public static final String BOOT_CLASS = "com.navercorp.pinpoint.profiler.DefaultAgent";
-
     public static final String PLUGIN_TEST_AGENT = "PLUGIN_TEST";
     public static final String PLUGIN_TEST_BOOT_CLASS = "com.navercorp.pinpoint.test.PluginTestAgent";
-
-    private SimpleProperty systemProperty = SystemProperty.INSTANCE;
-
+    private final BootLogger logger = BootLogger.getLogger(PinpointStarter.class.getName());
     private final Map<String, String> agentArgs;
     private final AgentDirectory agentDirectory;
     private final Instrumentation instrumentation;
     private final ClassLoader parentClassLoader;
     private final ModuleBootLoader moduleBootLoader;
+    private SimpleProperty systemProperty = SystemProperty.INSTANCE;
 
 
     public PinpointStarter(ClassLoader parentClassLoader, Map<String, String> agentArgs,
@@ -85,12 +79,16 @@ class PinpointStarter {
 
     boolean start() {
         final IdValidator idValidator = new IdValidator();
-        final String agentId = idValidator.getAgentId();
-        if (agentId == null) {
-            return false;
-        }
+        /**
+         * Change creation order for agentId and applicationName
+         * @date 2018/11/22 16:45
+         */
         final String applicationName = idValidator.getApplicationName();
         if (applicationName == null) {
+            return false;
+        }
+        final String agentId = idValidator.getAgentId();
+        if (agentId == null) {
             return false;
         }
 

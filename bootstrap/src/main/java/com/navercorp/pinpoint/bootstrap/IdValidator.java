@@ -18,7 +18,7 @@
 package com.navercorp.pinpoint.bootstrap;
 
 import com.navercorp.pinpoint.common.util.IdValidateUtils;
-
+import com.navercorp.pinpoint.common.util.NetUtils;
 
 import java.util.Properties;
 
@@ -27,10 +27,12 @@ import java.util.Properties;
  */
 public class IdValidator {
 
+    /**
+     * default max length is 24 ,we may need more length
+     */
+    private static final int MAX_ID_LENGTH = 60;
     private final BootLogger logger = BootLogger.getLogger(IdValidator.class.getName());
-
     private final Properties property;
-    private static final int MAX_ID_LENGTH = 24;
 
     public IdValidator() {
         this(System.getProperties());
@@ -46,7 +48,7 @@ public class IdValidator {
     private String getValidId(String propertyName, int maxSize) {
         logger.info("check -D" + propertyName);
         String value = property.getProperty(propertyName);
-        if (value == null){
+        if (value == null) {
             logger.warn("-D" + propertyName + " is null. value:null");
             return null;
         }
@@ -73,7 +75,20 @@ public class IdValidator {
         return this.getValidId("pinpoint.applicationName", MAX_ID_LENGTH);
     }
 
+    /**
+     * getAgentId
+     * return if set system property else return automatic generation
+     *
+     * @return
+     * @date 2018/11/22 16:45
+     */
     public String getAgentId() {
-        return this.getValidId("pinpoint.agentId", MAX_ID_LENGTH);
+        String agentId = this.getValidId("pinpoint.agentId", MAX_ID_LENGTH);
+        if (agentId != null) {
+            return agentId;
+        }
+        //create agentId by pinpoint.application and local host
+
+        return getApplicationName() + ":" + NetUtils.getLocalV4Ip();
     }
 }
