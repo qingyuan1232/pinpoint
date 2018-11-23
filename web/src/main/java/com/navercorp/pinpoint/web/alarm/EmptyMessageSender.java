@@ -37,8 +37,6 @@ public class EmptyMessageSender implements AlarmMessageSender {
     MessageSenderService messageSenderService;
     @Autowired
     UserGroupService userGroupService;
-    @Autowired
-    UserService userService;
 
     @Override
     public void sendSms(AlarmChecker checker, int sequenceCount) {
