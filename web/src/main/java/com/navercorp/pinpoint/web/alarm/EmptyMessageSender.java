@@ -16,19 +16,80 @@
 
 package com.navercorp.pinpoint.web.alarm;
 
+import com.navercorp.pinpoint.common.util.CollectionUtils;
+import com.navercorp.pinpoint.common.util.StringUtils;
 import com.navercorp.pinpoint.web.alarm.checker.AlarmChecker;
+import com.navercorp.pinpoint.web.config.ExecutorFactory;
+import com.navercorp.pinpoint.web.service.MessageSenderService;
+import com.navercorp.pinpoint.web.service.UserGroupService;
+import com.navercorp.pinpoint.web.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 /**
  * @author minwoo.jung
  */
 public class EmptyMessageSender implements AlarmMessageSender {
 
+    @Autowired
+    MessageSenderService messageSenderService;
+    @Autowired
+    UserGroupService userGroupService;
+    @Autowired
+    UserService userService;
+
     @Override
     public void sendSms(AlarmChecker checker, int sequenceCount) {
+        if (StringUtils.isEmpty(checker.getuserGroupId())) {
+            return;
+        }
+
+        List<String> phones = userGroupService.selectPhoneNumberOfMember(checker.getuserGroupId());
+        if (CollectionUtils.isEmpty(phones)) {
+            return;
+        }
+
+        //asyn send
+        ExecutorService service = ExecutorFactory.getInstance();
+        for (String phone : phones) {
+            List<String> messages = checker.getSmsMessage();
+            for (String message : messages) {
+                service.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        messageSenderService.smsSend(phone, message);
+                    }
+                });
+            }
+
+        }
+
     }
 
     @Override
     public void sendEmail(AlarmChecker checker, int sequenceCount) {
+        if (StringUtils.isEmpty(checker.getuserGroupId())) {
+            return;
+        }
+
+        List<String> emails = userGroupService.selectEmailOfMember(checker.getuserGroupId());
+        if (CollectionUtils.isEmpty(emails)) {
+            return;
+        }
+
+        //asyn send
+        ExecutorService service = ExecutorFactory.getInstance();
+        for (String phone : emails) {
+            service.submit(new Runnable() {
+                @Override
+                public void run() {
+                    messageSenderService.smsSend(phone, checker.getEmailMessage());
+                }
+            });
+
+        }
     }
 
 }
