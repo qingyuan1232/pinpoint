@@ -35,7 +35,7 @@
 						if ( text === undefined || text === null ) {
 							return "";
 						} else {
-							return text.replace(/</g, "&lt;").replace(/>/g, "$gt;");
+							return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 						}
 					};
 					var getAuthorizeView = function( bIsAuthorized, text ) {
@@ -342,7 +342,7 @@
 	                    grid = new Slick.Grid(element.get(0), dataView, columns, options);
 	                    grid.setSelectionModel(new Slick.RowSelectionModel());
 	
-	                    var isSingleSQ = true, clickTimeout = false;
+	                    var isSingleClick = true, clickTimeout = false;
 	                    grid.onClick.subscribe(function (e, args) {
 							var item;
 	                        if ($(e.target).hasClass("toggle")) {

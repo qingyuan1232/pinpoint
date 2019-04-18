@@ -1,14 +1,13 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { Subject, Observable } from 'rxjs';
-import { takeUntil, withLatestFrom } from 'rxjs/operators';
+import { takeUntil, withLatestFrom, map } from 'rxjs/operators';
 
-import { UrlPathId } from 'app/shared/models';
 import { Actions } from 'app/shared/store';
-import { StoreHelperService, NewUrlStateNotificationService, AnalyticsService, TRACKED_EVENT_LIST } from 'app/shared/services';
+import { StoreHelperService, NewUrlStateNotificationService, AnalyticsService, TRACKED_EVENT_LIST, MessageQueueService, MESSAGE_TO } from 'app/shared/services';
 import { Timeline, ITimelineEventSegment, TimelineUIEvent } from './class';
 import { TimelineComponent } from './timeline.component';
-import { TimelineInteractionService, ITimelineCommandParam, TimelineCommand } from './timeline-interaction.service';
-import { IAgentTimeline, IRetrieveTime } from './agent-timeline-data.service';
+import { IAgentTimeline } from './agent-timeline-data.service';
+import { UrlPathId } from 'app/shared/models';
 
 @Component({
     selector: 'pp-application-inspector-timeline-container',
@@ -33,64 +32,53 @@ export class ApplicationInspectorTimelineContainerComponent implements OnInit, O
         private changeDetector: ChangeDetectorRef,
         private storeHelperService: StoreHelperService,
         private newUrlStateNotificationService: NewUrlStateNotificationService,
-        private timelineInteractionService: TimelineInteractionService,
+        private messageQueueService: MessageQueueService,
         private analyticsService: AnalyticsService,
     ) {}
 
     ngOnInit() {
         this.connectStore();
-        this.timelineInteractionService.onCommand$.pipe(
-            takeUntil(this.unsubscribe)
-        ).subscribe((param: ITimelineCommandParam) => {
-            switch (param.command) {
-                case TimelineCommand.zoomIn:
-                    this.analyticsService.trackEvent(TRACKED_EVENT_LIST.ZOOM_IN_TIMELINE);
-                    this.timelineComponent.zoomIn();
-                    break;
-                case TimelineCommand.zoomOut:
-                    this.analyticsService.trackEvent(TRACKED_EVENT_LIST.ZOOM_OUT_TIMELINE);
-                    this.timelineComponent.zoomOut();
-                    break;
-                case TimelineCommand.prev:
-                    this.analyticsService.trackEvent(TRACKED_EVENT_LIST.MOVE_TO_PREV_ON_TIMELINE);
-                    this.timelineComponent.movePrev();
-                    break;
-                case TimelineCommand.next:
-                    this.analyticsService.trackEvent(TRACKED_EVENT_LIST.MOVE_TO_NEXT_ON_TIMELINE);
-                    this.timelineComponent.moveNext();
-                    break;
-                case TimelineCommand.now:
-                    this.analyticsService.trackEvent(TRACKED_EVENT_LIST.MOVE_TO_NOW_ON_TIMELINE);
-                    this.timelineComponent.moveNow();
-                    break;
-            }
+        this.messageQueueService.receiveMessage(this.unsubscribe, MESSAGE_TO.TIMELINE_ZOOM_IN).subscribe(() => {
+            this.analyticsService.trackEvent(TRACKED_EVENT_LIST.ZOOM_IN_TIMELINE);
+            this.timelineComponent.zoomIn();
+        });
+        this.messageQueueService.receiveMessage(this.unsubscribe, MESSAGE_TO.TIMELINE_ZOOM_OUT).subscribe(() => {
+            this.analyticsService.trackEvent(TRACKED_EVENT_LIST.ZOOM_OUT_TIMELINE);
+            this.timelineComponent.zoomOut();
+        });
+        this.messageQueueService.receiveMessage(this.unsubscribe, MESSAGE_TO.TIMELINE_MOVE_PREV).subscribe(() => {
+            this.analyticsService.trackEvent(TRACKED_EVENT_LIST.MOVE_TO_PREV_ON_TIMELINE);
+            this.timelineComponent.movePrev();
+        });
+        this.messageQueueService.receiveMessage(this.unsubscribe, MESSAGE_TO.TIMELINE_MOVE_NEXT).subscribe(() => {
+            this.analyticsService.trackEvent(TRACKED_EVENT_LIST.MOVE_TO_PREV_ON_TIMELINE);
+            this.timelineComponent.moveNext();
+        });
+        this.messageQueueService.receiveMessage(this.unsubscribe, MESSAGE_TO.TIMELINE_MOVE_NOW).subscribe(() => {
+            this.analyticsService.trackEvent(TRACKED_EVENT_LIST.MOVE_TO_NOW_ON_TIMELINE);
+            this.timelineComponent.moveNow();
         });
         this.newUrlStateNotificationService.onUrlStateChange$.pipe(
             takeUntil(this.unsubscribe),
             withLatestFrom(this.storeHelperService.getInspectorTimelineData(this.unsubscribe)),
-        ).subscribe(([urlService, savedTimelineData]: [NewUrlStateNotificationService, ITimelineInfo]) => {
-            /*
-                if ( application.changed or period.changed ) {
-                    url 값 사용
+            map(([urlService, storeState]: [NewUrlStateNotificationService, ITimelineInfo]) => {
+                if (urlService.isValueChanged(UrlPathId.PERIOD) || urlService.isValueChanged(UrlPathId.END_TIME)) {
+                    const selectionStartTime = urlService.getStartTimeToNumber();
+                    const selectionEndTime = urlService.getEndTimeToNumber();
+                    const [start, end] = this.calcuRetrieveTime(selectionStartTime, selectionEndTime);
+                    const timelineInfo: ITimelineInfo = {
+                        range: [start, end],
+                        selectedTime: selectionEndTime,
+                        selectionRange: [selectionStartTime, selectionEndTime]
+                    };
+
+                    this.storeHelperService.dispatch(new Actions.UpdateTimelineData(timelineInfo));
+                    return timelineInfo;
                 } else {
-                    store에 저장된 값 있나?
-                    - 있다면 사용
-                    - 없다면 URL 값 사용
+                    return storeState;
                 }
-            */
-            const selectionStartTime = urlService.getStartTimeToNumber();
-            const selectionEndTime = urlService.getEndTimeToNumber();
-            const range = this.calcuRetrieveTime(selectionStartTime, selectionEndTime);
-            let timelineInfo: ITimelineInfo = {
-                range: [range.start, range.end],
-                selectedTime: selectionEndTime,
-                selectionRange: [selectionStartTime, selectionEndTime]
-            };
-            if (urlService.isChanged(UrlPathId.APPLICATION) === false && urlService.isChanged(UrlPathId.PERIOD) === false) {
-                if (savedTimelineData.selectedTime !== 0) {
-                    timelineInfo = savedTimelineData;
-                }
-            }
+            }),
+        ).subscribe((timelineInfo: ITimelineInfo) => {
             this.timelineStartTime = timelineInfo.range[0];
             this.timelineEndTime = timelineInfo.range[1];
             this.selectionStartTime = timelineInfo.selectionRange[0];
@@ -111,7 +99,7 @@ export class ApplicationInspectorTimelineContainerComponent implements OnInit, O
                     'timelineSegments': []
                 }
             };
-            this.storeHelperService.dispatch(new Actions.UpdateTimelineData(timelineInfo));
+
             this.changeDetector.detectChanges();
         });
     }
@@ -123,20 +111,16 @@ export class ApplicationInspectorTimelineContainerComponent implements OnInit, O
         this.timezone$ = this.storeHelperService.getTimezone(this.unsubscribe);
         this.dateFormat$ = this.storeHelperService.getDateFormatArray(this.unsubscribe, 0, 5, 6);
     }
-    calcuRetrieveTime(startTime: number, endTime: number ): IRetrieveTime {
+    calcuRetrieveTime(startTime: number, endTime: number ): number[] {
         const allowedMaxRagne = Timeline.MAX_TIME_RANGE;
         const timeGap = endTime - startTime;
-        if ( timeGap > allowedMaxRagne  ) {
-            return {
-                start: endTime - allowedMaxRagne,
-                end: endTime
-            };
+
+        if (timeGap > allowedMaxRagne) {
+            return [endTime - allowedMaxRagne, endTime];
         } else {
             const calcuStart = timeGap * 3;
-            return {
-                start: endTime - (calcuStart > allowedMaxRagne ? allowedMaxRagne : calcuStart),
-                end:  endTime
-            };
+
+            return [endTime - (calcuStart > allowedMaxRagne ? allowedMaxRagne : calcuStart), endTime];
         }
     }
     onSelectEventStatus($eventObj: ITimelineEventSegment): void {}

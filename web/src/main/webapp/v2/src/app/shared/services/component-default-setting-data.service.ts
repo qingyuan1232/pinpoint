@@ -4,8 +4,8 @@ import { UrlPath } from 'app/shared/models';
 @Injectable()
 export class ComponentDefaultSettingDataService {
 
-    private inboundList = ['1', '2', '3', '4'];
-    private outboundList = ['1', '2', '3', '4'];
+    private inboundList = [1, 2, 3, 4];
+    private outboundList = [1, 2, 3, 4];
     private periodList = {
         [UrlPath.MAIN]: [
             new Period(5, 'Last'),
@@ -59,11 +59,12 @@ export class ComponentDefaultSettingDataService {
         ['D MMM YYYY HH:mm:ss', 'D MMM YYYY HH:mm:ss Z', 'D MMM YYYY HH:mm:ss SSS', 'D MMM YYYY', 'HH:mm:ss', 'D MMM', 'HH:mm'],
         ['D MMM YYYY h:mm:ss a', 'D MMM YYYY h:mm:ss a Z', 'D MMM YYYY h:mm:ss SSS a', 'D MMM YYYY', 'h:mm:ss a', 'D MMM', 'h:mm a']
     ];
+    private chartNumPerRow = 3;
     constructor() {}
-    getInboundList(): string[] {
+    getInboundList(): number[] {
         return this.inboundList;
     }
-    getOutboundList(): string[] {
+    getOutboundList(): number[] {
         return this.outboundList;
     }
     getPeriodList(path: string): Period[] {
@@ -75,10 +76,10 @@ export class ComponentDefaultSettingDataService {
     getSystemDefaultTransactionViewPeriod(): Period {
         return this.periodList[UrlPath.TRANSACTION_VIEW][0];
     }
-    getSystemDefaultInbound(): string {
+    getSystemDefaultInbound(): number {
         return this.inboundList[0];
     }
-    getSystemDefaultOutbound(): string {
+    getSystemDefaultOutbound(): number {
         return this.outboundList[0];
     }
     getMaxPeriodTime(): number {
@@ -92,5 +93,8 @@ export class ComponentDefaultSettingDataService {
     }
     getDefaultDateFormat(): string[] {
         return this.dateFormatList[4];
+    }
+    getSystemDefaultChartLayoutOption(): number {
+        return this.chartNumPerRow;
     }
 }

@@ -49,7 +49,10 @@ export class ServerStatusContainerComponent implements OnInit, OnDestroy {
             })
         ).subscribe((target: ISelectedTarget) => {
             this.selectedTarget = target;
-            this.node = (target.isNode === true ? this.serverMapData.getNodeData(target.node[0]) : null);
+            this.node = (target.isNode === true ? this.serverMapData.getNodeData(target.node[0]) as INodeInfo : null);
+            if (target.clickParam && target.clickParam.isInstanceCount()) {
+                this.onClickViewServer();
+            }
             this.changeDetector.detectChanges();
         });
         this.storeHelperService.getInfoPerServerState(this.unsubscribe).subscribe((visibleState: boolean) => {

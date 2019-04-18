@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ComponentFactoryResolver, Injector } from '@angular/core';
 import { combineLatest, Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
@@ -10,21 +10,19 @@ import {
     StoreHelperService,
     AnalyticsService,
     TRACKED_EVENT_LIST,
-    DynamicPopupService
+    DynamicPopupService,
+    MessageQueueService,
+    MESSAGE_TO
 } from 'app/shared/services';
-import { Actions } from 'app/shared/store';
 import { UrlPath, UrlPathId } from 'app/shared/models';
-import { ScatterChartDataService } from './scatter-chart-data.service';
 import { ScatterChart } from './class/scatter-chart.class';
-import { ScatterChartComponent } from './scatter-chart.component';
 import { ScatterChartInteractionService } from './scatter-chart-interaction.service';
 import { HELP_VIEWER_LIST, HelpViewerPopupContainerComponent } from 'app/core/components/help-viewer-popup/help-viewer-popup-container.component';
 
 @Component({
     selector: 'pp-scatter-chart-for-filtered-map-info-per-server-container',
     templateUrl: './scatter-chart-for-filtered-map-info-per-server-container.component.html',
-    styleUrls: ['./scatter-chart-for-filtered-map-info-per-server-container.component.css'],
-    changeDetection: ChangeDetectionStrategy.OnPush
+    styleUrls: ['./scatter-chart-for-filtered-map-info-per-server-container.component.css']
 })
 export class ScatterChartForFilteredMapInfoPerServerContainerComponent implements OnInit, AfterViewInit, OnDestroy {
     instanceKey = 'filtered-map-info-per-server';
@@ -36,15 +34,6 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
     unsubscribe: Subject<null> = new Subject();
     hideSettingPopup = true;
     selectedAgent: string;
-    typeInfo = [{
-        name: 'failed',
-        color: '#E95459',
-        order: 10
-    }, {
-        name: 'success',
-        color: '#34B994',
-        order: 20
-    }];
     typeCount: object;
     width = 460;
     height = 230;
@@ -60,16 +49,17 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
     timezone: string;
     dateFormat: string[];
     constructor(
-        private changeDetectorRef: ChangeDetectorRef,
         private storeHelperService: StoreHelperService,
         private translateService: TranslateService,
         private webAppSettingDataService: WebAppSettingDataService,
         private newUrlStateNotificationService: NewUrlStateNotificationService,
         private urlRouteManagerService: UrlRouteManagerService,
-        private scatterChartDataService: ScatterChartDataService,
         private scatterChartInteractionService: ScatterChartInteractionService,
         private analyticsService: AnalyticsService,
-        private dynamicPopupService: DynamicPopupService
+        private dynamicPopupService: DynamicPopupService,
+        private componentFactoryResolver: ComponentFactoryResolver,
+        private injector: Injector,
+        private messageQueueService: MessageQueueService
     ) {}
     ngOnInit() {
         this.setScatterY();
@@ -90,12 +80,10 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
             })
         ).subscribe((urlService: NewUrlStateNotificationService) => {
             this.scatterChartMode = urlService.isRealTimeMode() ? ScatterChart.MODE.REALTIME : ScatterChart.MODE.STATIC;
-            this.scatterChartDataService.setCurrentMode(this.scatterChartMode);
             this.application = urlService.getPathValue(UrlPathId.APPLICATION).getKeyStr();
             this.selectedAgent = '';
             this.fromX = urlService.getStartTimeToNumber();
             this.toX = urlService.getEndTimeToNumber();
-            this.changeDetectorRef.detectChanges();
         });
     }
     ngAfterViewInit() {
@@ -120,11 +108,9 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
     private connectStore(): void {
         this.storeHelperService.getTimezone(this.unsubscribe).subscribe((timezone: string) => {
             this.timezone = timezone;
-            this.changeDetectorRef.detectChanges();
         });
         this.storeHelperService.getDateFormatArray(this.unsubscribe, 3, 4).subscribe((format: string[]) => {
             this.dateFormat = format;
-            this.changeDetectorRef.detectChanges();
         });
         this.storeHelperService.getAgentSelectionForServerList(this.unsubscribe).pipe(
             filter((chartData: IAgentSelection) => {
@@ -132,7 +118,6 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
             })
         ).subscribe((chartData: IAgentSelection) => {
             this.selectedAgent = chartData.agent;
-            this.changeDetectorRef.detectChanges();
             this.scatterChartInteractionService.changeAgent(this.instanceKey, chartData.agent);
         });
         this.storeHelperService.getScatterChartData(this.unsubscribe).subscribe((scatterChartData: IScatterData[]) => {
@@ -148,7 +133,6 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
             this.selectedAgent = '';
             this.selectedApplication = this.selectedTarget.node[0];
             this.scatterChartInteractionService.reset(this.instanceKey, this.selectedApplication, this.selectedAgent, this.fromX, this.toX, this.scatterChartMode);
-            this.changeDetectorRef.detectChanges();
         });
     }
     isHide(): boolean {
@@ -203,6 +187,9 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
                 coordY: top + height / 2
             },
             component: HelpViewerPopupContainerComponent
+        }, {
+            resolver: this.componentFactoryResolver,
+            injector: this.injector
         });
     }
     onChangedSelectType(params: {instanceKey: string, name: string, checked: boolean}): void {
@@ -213,7 +200,10 @@ export class ScatterChartForFilteredMapInfoPerServerContainerComponent implement
         this.typeCount = params;
     }
     onChangeRangeX(params: IScatterXRange): void {
-        this.storeHelperService.dispatch(new Actions.UpdateRealTimeScatterChartXRange(params));
+        this.messageQueueService.sendMessage({
+            to: MESSAGE_TO.REAL_TIME_SCATTER_CHART_X_RANGE,
+            param: [params]
+        });
     }
     onSelectArea(params: any): void {
         this.analyticsService.trackEvent(TRACKED_EVENT_LIST.OPEN_TRANSACTION_LIST);

@@ -1,10 +1,10 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ComponentFactoryResolver, Injector } from '@angular/core';
 import { Subject, combineLatest } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 
 import { Actions } from 'app/shared/store';
-import { WebAppSettingDataService, StoreHelperService, AgentHistogramDataService, AnalyticsService, TRACKED_EVENT_LIST, DynamicPopupService } from 'app/shared/services';
+import { WebAppSettingDataService, StoreHelperService, AgentHistogramDataService, AnalyticsService, TRACKED_EVENT_LIST, DynamicPopupService, MessageQueueService, MESSAGE_TO } from 'app/shared/services';
 import { ServerMapData } from 'app/core/components/server-map/class/server-map-data.class';
 import { HELP_VIEWER_LIST, HelpViewerPopupContainerComponent } from 'app/core/components/help-viewer-popup/help-viewer-popup-container.component';
 
@@ -41,7 +41,10 @@ export class LoadChartForSideBarContainerComponent implements OnInit, OnDestroy 
         private webAppSettingDataService: WebAppSettingDataService,
         private agentHistogramDataService: AgentHistogramDataService,
         private analyticsService: AnalyticsService,
-        private dynamicPopupService: DynamicPopupService
+        private dynamicPopupService: DynamicPopupService,
+        private componentFactoryResolver: ComponentFactoryResolver,
+        private injector: Injector,
+        private messageQueueService: MessageQueueService
     ) {}
     ngOnInit() {
         this.chartColors = this.webAppSettingDataService.getColorByRequest();
@@ -55,6 +58,10 @@ export class LoadChartForSideBarContainerComponent implements OnInit, OnDestroy 
             };
         });
         this.connectStore();
+        this.messageQueueService.receiveMessage(this.unsubscribe, MESSAGE_TO.REAL_TIME_SCATTER_CHART_X_RANGE).subscribe(([{ from, to }]: IScatterXRange[]) => {
+            this.yMax = -1;
+            this.loadLoadChartData(from, to);
+        });
     }
     ngOnDestroy() {
         this.unsubscribe.next();
@@ -79,12 +86,9 @@ export class LoadChartForSideBarContainerComponent implements OnInit, OnDestroy 
             this.selectedAgent = agent;
             if (this.selectedTarget) {
                 this.loadLoadChartData();
+            } else {
+                this.changeDetector.detectChanges();
             }
-            this.changeDetector.detectChanges();
-        });
-        this.storeHelperService.getRealTimeScatterChartRange(this.unsubscribe).subscribe(({ from, to  }: IScatterXRange) => {
-            this.yMax = -1;
-            this.loadLoadChartData(from, to);
         });
         this.storeHelperService.getServerMapData(this.unsubscribe).subscribe((serverMapData: ServerMapData) => {
             this.serverMapData = serverMapData;
@@ -95,6 +99,7 @@ export class LoadChartForSideBarContainerComponent implements OnInit, OnDestroy 
             })
         ).subscribe((target: ISelectedTarget) => {
             this.yMax = -1;
+            this.selectedAgent = '';
             this.selectedTarget = target;
             this.hiddenComponent = target.isMerged;
             if (target.isMerged === false) {
@@ -117,18 +122,20 @@ export class LoadChartForSideBarContainerComponent implements OnInit, OnDestroy 
     }
     private loadLoadChartData(from?: number, to?: number): void {
         const target = this.getTargetInfo();
-        if (this.isAllAgent() && arguments.length !== 2) {
-            this.passDownChartData(this.agentHistogramDataService.makeChartDataForLoad(target.timeSeriesHistogram, this.timezone, [this.dateFormatMonth, this.dateFormatDay], this.getChartYMax()));
-        } else {
-            this.agentHistogramDataService.getData(target.key, target.applicationName, target.serviceTypeCode, this.serverMapData, from, to).subscribe((chartData: any) => {
-                const chartDataForAgent = this.isAllAgent() ? chartData['timeSeriesHistogram'] : chartData['agentTimeSeriesHistogram'][this.selectedAgent];
-                this.passDownChartData(this.agentHistogramDataService.makeChartDataForLoad(chartDataForAgent, this.timezone, [this.dateFormatMonth, this.dateFormatDay], this.getChartYMax()));
-            }, (error: IServerErrorFormat) => {
-                this.hasRequestError = true;
-                this.hiddenChart = true;
-                this.setDisable(false);
-                this.changeDetector.detectChanges();
-            });
+        if (target) {
+            if (this.isAllAgent() && arguments.length !== 2) {
+                this.passDownChartData(this.agentHistogramDataService.makeChartDataForLoad(target.timeSeriesHistogram, this.timezone, [this.dateFormatMonth, this.dateFormatDay], this.getChartYMax()));
+            } else {
+                this.agentHistogramDataService.getData(target.key, target.applicationName, target.serviceTypeCode, this.serverMapData, from, to).subscribe((chartData: any) => {
+                    const chartDataForAgent = this.isAllAgent() ? chartData['timeSeriesHistogram'] : chartData['agentTimeSeriesHistogram'][this.selectedAgent];
+                    this.passDownChartData(this.agentHistogramDataService.makeChartDataForLoad(chartDataForAgent, this.timezone, [this.dateFormatMonth, this.dateFormatDay], this.getChartYMax()));
+                }, (error: IServerErrorFormat) => {
+                    this.hasRequestError = true;
+                    this.hiddenChart = true;
+                    this.setDisable(false);
+                    this.changeDetector.detectChanges();
+                });
+            }
         }
     }
     private passDownChartData(chartData: any): void {
@@ -175,6 +182,9 @@ export class LoadChartForSideBarContainerComponent implements OnInit, OnDestroy 
                 coordY: top + height / 2
             },
             component: HelpViewerPopupContainerComponent
+        }, {
+            resolver: this.componentFactoryResolver,
+            injector: this.injector
         });
     }
 }

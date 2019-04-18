@@ -16,7 +16,6 @@
 
 package com.navercorp.pinpoint.profiler.receiver;
 
-import com.google.inject.Inject;
 import com.navercorp.pinpoint.common.util.Assert;
 import com.navercorp.pinpoint.io.request.Message;
 import com.navercorp.pinpoint.rpc.MessageListener;
@@ -26,20 +25,23 @@ import com.navercorp.pinpoint.rpc.packet.SendPacket;
 import com.navercorp.pinpoint.rpc.packet.stream.StreamClosePacket;
 import com.navercorp.pinpoint.rpc.packet.stream.StreamCode;
 import com.navercorp.pinpoint.rpc.packet.stream.StreamCreatePacket;
-import com.navercorp.pinpoint.rpc.stream.ServerStreamChannelContext;
-import com.navercorp.pinpoint.rpc.stream.ServerStreamChannelMessageListener;
+import com.navercorp.pinpoint.rpc.stream.ServerStreamChannel;
+import com.navercorp.pinpoint.rpc.stream.ServerStreamChannelMessageHandler;
 import com.navercorp.pinpoint.thrift.dto.TResult;
 import com.navercorp.pinpoint.thrift.util.SerializationUtils;
+
+import com.google.inject.Inject;
 import org.apache.thrift.TBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.util.Set;
 
 /**
  * @author Taejin Koo
  */
-public class CommandDispatcher implements MessageListener, ServerStreamChannelMessageListener  {
+public class CommandDispatcher extends ServerStreamChannelMessageHandler implements MessageListener {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -94,10 +96,9 @@ public class CommandDispatcher implements MessageListener, ServerStreamChannelMe
         return tResponse;
     }
 
-
     @Override
-    public StreamCode handleStreamCreate(ServerStreamChannelContext streamChannelContext, StreamCreatePacket packet) {
-        logger.info("MessageReceived handleStreamCreate {} {}", packet, streamChannelContext);
+    public StreamCode handleStreamCreatePacket(ServerStreamChannel streamChannel, StreamCreatePacket packet) {
+        logger.info("handleStreamCreatePacket() streamChannel:{}, packet:{}", streamChannel, packet);
 
         final Message<TBase<?, ?>> message = SerializationUtils.deserialize(packet.getPayload(), CommandSerializer.DESERIALIZER_FACTORY, null);
         if (message == null) {
@@ -111,15 +112,39 @@ public class CommandDispatcher implements MessageListener, ServerStreamChannelMe
         }
 
         final TBase<?, ?> request = message.getData();
-        return service.streamCommandService(request, streamChannelContext);
+        return service.streamCommandService(request, streamChannel);
     }
 
     @Override
-    public void handleStreamClose(ServerStreamChannelContext streamChannelContext, StreamClosePacket packet) {
+    public void handleStreamClosePacket(ServerStreamChannel streamChannel, StreamClosePacket packet) {
+        logger.info("handleStreamClosePacket() streamChannel:{}, packet:{}", streamChannel, packet);
     }
 
     public Set<Short> getRegisteredCommandServiceCodes() {
         return commandServiceLocator.getCommandServiceCodes();
+    }
+
+    public void close() {
+        logger.info("close() started");
+
+        Set<Short> commandServiceCodes = commandServiceLocator.getCommandServiceCodes();
+        for (Short commandServiceCode : commandServiceCodes) {
+            ProfilerCommandService service = commandServiceLocator.getService(commandServiceCode);
+            if (service instanceof Closeable) {
+                try {
+                    ((Closeable) service).close();
+                } catch (Exception e) {
+                    logger.warn("failed to close for CommandService:{}. message:{}", service, e.getMessage());
+                }
+            }
+        }
+
+        logger.info("close() completed");
+    }
+
+    @Override
+    public String toString() {
+        return "CommandDispatcher{" + commandServiceLocator.getCommandServiceCodes() + '}';
     }
 
 }

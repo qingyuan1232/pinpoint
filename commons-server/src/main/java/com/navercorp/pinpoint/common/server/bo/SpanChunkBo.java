@@ -29,6 +29,8 @@ public class SpanChunkBo implements BasicSpan {
 
     private long collectorAcceptTime;
 
+    private LocalAsyncIdBo localAsyncId;
+    private long keyTime;
 
 
     public SpanChunkBo() {
@@ -81,6 +83,14 @@ public class SpanChunkBo implements BasicSpan {
 
     public void setSpanId(long spanId) {
         this.spanId = spanId;
+    }
+
+    public long getKeyTime() {
+        return this.keyTime;
+    }
+
+    public void setKeyTime(long keyTime) {
+        this.keyTime = keyTime;
     }
 
     public String getEndPoint() {
@@ -136,6 +146,18 @@ public class SpanChunkBo implements BasicSpan {
         this.spanEventBoList.addAll(spanEventBoList);
     }
 
+    public boolean isAsyncSpanChunk() {
+        return localAsyncId != null;
+    }
+
+    public LocalAsyncIdBo getLocalAsyncId() {
+        return localAsyncId;
+    }
+
+    public void setLocalAsyncId(LocalAsyncIdBo localAsyncId) {
+        this.localAsyncId = localAsyncId;
+    }
+
     @Override
     public String toString() {
         return "SpanChunkBo{" +
@@ -150,6 +172,8 @@ public class SpanChunkBo implements BasicSpan {
                 ", applicationServiceType=" + applicationServiceType +
                 ", spanEventBoList=" + spanEventBoList +
                 ", collectorAcceptTime=" + collectorAcceptTime +
+                ", localAsyncId=" + localAsyncId +
+                ", keyTIme=" + keyTime +
                 '}';
     }
 }

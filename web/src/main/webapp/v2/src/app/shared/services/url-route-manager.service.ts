@@ -47,7 +47,14 @@ export class UrlRouteManagerService {
             UrlPath.REAL_TIME
         ]);
     }
+    moveToConfigPage(type: string): void {
+        this.router.navigate([
+            UrlPath.CONFIG,
+            type
+        ]);
+    }
     move({ url, needServerTimeRequest, nextUrl = [], queryParam }: { url: string[], needServerTimeRequest: boolean, nextUrl?: string[], queryParam?: any} ): void {
+        url = url[0] === this.getBaseHref().replace(/\//g, '') ? url.slice(1) : url;
         if (needServerTimeRequest) {
             this.serverTimeDataService.getServerTime().subscribe(time => {
                 const newUrl = url.concat([EndTime.formatDate(time)]).concat(nextUrl).filter((v: string) => {
@@ -81,10 +88,10 @@ export class UrlRouteManagerService {
     }
     moveOnPage({ url, queryParam }: { url: string[], queryParam?: any }): void {
         this.move({
-            url: url,
+            url,
             needServerTimeRequest: false,
             nextUrl: [],
-            queryParam: queryParam
+            queryParam
         });
     }
     openPage(path: string | string[], title?: string): void {
@@ -131,7 +138,7 @@ export class UrlRouteManagerService {
     back(): void {
         this.windowRef.nativeWindow.history.back();
     }
-    private getBaseHref(): string {
+    getBaseHref(): string {
         if (this.baseHref === '/') {
             return '';
         } else {
