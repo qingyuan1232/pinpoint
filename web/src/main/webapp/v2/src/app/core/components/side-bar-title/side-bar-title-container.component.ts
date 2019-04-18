@@ -24,6 +24,7 @@ export class SideBarTitleContainerComponent implements OnInit, OnDestroy {
     isNode: boolean;
     fromAppData: IAppData = null;
     toAppData: IAppData = null;
+    selectedAgent = 'All';
     selectedTarget: ISelectedTarget;
     serverMapData: any;
     funcImagePath: Function;
@@ -52,20 +53,25 @@ export class SideBarTitleContainerComponent implements OnInit, OnDestroy {
                 return target && (target.isNode === true || target.isNode === false) ? true : false;
             })
         ).subscribe((target: ISelectedTarget) => {
+            this.selectedAgent = 'All';
             if ( target.isNode || target.isLink ) {
                 this.selectedTarget = target;
                 this.makeFromToData();
                 this.changeDetector.detectChanges();
             }
         });
+        this.storeHelperService.getServerMapTargetSelectedByList(this.unsubscribe).subscribe((target: any) => {
+            this.selectedAgent = 'All';
+            this.changeDetector.detectChanges();
+        });
     }
     makeFromToData() {
-        if ( this.selectedTarget.isNode ) {
+        if (this.selectedTarget.isNode) {
             this.isWAS = this.selectedTarget.isWAS;
             this.isNode = true;
             const node = this.serverMapData.getNodeData(this.selectedTarget.node[0]);
             this.toAppData = this.formatToAppData({ node: node });
-        } else if ( this.selectedTarget.isLink ) {
+        } else if (this.selectedTarget.isLink) {
             this.isWAS = false;
             this.isNode = false;
             const link = this.serverMapData.getLinkData(this.selectedTarget.link[0]);
@@ -77,10 +83,17 @@ export class SideBarTitleContainerComponent implements OnInit, OnDestroy {
         return type.toUpperCase() === 'USER';
     }
     private formatFromAppData(link: any): IAppData {
-        return {
-            applicationName: this.isUserType(link.sourceInfo.serviceType) ? link.sourceInfo.serviceType : link.sourceInfo.applicationName,
-            serviceType: link.sourceInfo.serviceType
-        };
+        if (this.selectedTarget.isSourceMerge) {
+            return {
+                applicationName: `[ ${this.selectedTarget.link.length} ] ${link.sourceInfo.serviceType} GROUP`,
+                serviceType: link.sourceInfo.serviceType
+            };
+        } else {
+            return {
+                applicationName: this.isUserType(link.sourceInfo.serviceType) ? link.sourceInfo.serviceType : link.sourceInfo.applicationName,
+                serviceType: link.sourceInfo.serviceType
+            };
+        }
     }
     private formatToAppData({ node, link }: { node?: any, link?: any }): IAppData {
         if (this.isNode) {
@@ -94,16 +107,25 @@ export class SideBarTitleContainerComponent implements OnInit, OnDestroy {
                 return {
                     applicationName: node.applicationName,
                     serviceType: node.serviceType,
-                    agentList: node.agentIds.sort()
+                    agentList: ['All'].concat(node.agentIds.sort())
                 };
             }
         } else {
             if (this.selectedTarget.isMerged) {
-                return {
-                    applicationName: `[ ${this.selectedTarget.link.length} ] ${link.targetInfo.serviceType} GROUP`,
-                    serviceType: link.targetInfo.serviceType,
-                    agentList: []
-                };
+                if (this.selectedTarget.isSourceMerge) {
+                    return {
+                        applicationName: link.targetInfo.applicationName,
+                        serviceType: link.targetInfo.serviceType,
+                        agentList: []
+                    };
+
+                } else {
+                    return {
+                        applicationName: `[ ${this.selectedTarget.link.length} ] ${link.targetInfo.serviceType} GROUP`,
+                        serviceType: link.targetInfo.serviceType,
+                        agentList: []
+                    };
+                }
             } else {
                 return {
                     applicationName: link.targetInfo.applicationName,
@@ -114,8 +136,8 @@ export class SideBarTitleContainerComponent implements OnInit, OnDestroy {
         }
     }
     onChangeAgent(agentName: string): void {
+        this.selectedAgent = agentName;
         this.analyticsService.trackEvent(TRACKED_EVENT_LIST.SELECT_AGENT);
-        agentName = agentName === 'All' ? '' : agentName;
-        this.storeHelperService.dispatch(new Actions.ChangeAgent(agentName));
+        this.storeHelperService.dispatch(new Actions.ChangeAgent(agentName === 'All' ? '' : agentName));
     }
 }

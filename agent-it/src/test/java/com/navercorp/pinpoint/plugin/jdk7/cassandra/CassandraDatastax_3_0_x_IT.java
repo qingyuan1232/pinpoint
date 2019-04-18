@@ -18,6 +18,7 @@ package com.navercorp.pinpoint.plugin.jdk7.cassandra;
 
 import com.navercorp.pinpoint.plugin.AgentPath;
 import com.navercorp.pinpoint.test.plugin.Dependency;
+import com.navercorp.pinpoint.test.plugin.JvmVersion;
 import com.navercorp.pinpoint.test.plugin.PinpointAgent;
 import com.navercorp.pinpoint.test.plugin.PinpointPluginTestSuite;
 import org.junit.runner.RunWith;
@@ -27,8 +28,9 @@ import org.junit.runner.RunWith;
  */
 @RunWith(PinpointPluginTestSuite.class)
 @PinpointAgent(AgentPath.PATH)
+@JvmVersion(8)
 @Dependency({
-        "com.datastax.cassandra:cassandra-driver-core:[3.0.0,)",
+        "com.datastax.cassandra:cassandra-driver-core:[3.0.0,4.0.0)",
         "org.scassandra:java-client:1.1.2"})
 public class CassandraDatastax_3_0_x_IT extends CassandraDatastaxITBase {
 }

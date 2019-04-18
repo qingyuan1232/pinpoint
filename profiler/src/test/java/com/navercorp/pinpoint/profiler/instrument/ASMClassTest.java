@@ -23,6 +23,7 @@ import com.navercorp.pinpoint.bootstrap.instrument.ClassFilters;
 import com.navercorp.pinpoint.bootstrap.instrument.InstrumentContext;
 import com.navercorp.pinpoint.bootstrap.instrument.InstrumentMethod;
 import com.navercorp.pinpoint.bootstrap.instrument.MethodFilters;
+import com.navercorp.pinpoint.bootstrap.plugin.RequestRecorderFactory;
 import com.navercorp.pinpoint.profiler.context.monitor.DataSourceMonitorRegistryService;
 import com.navercorp.pinpoint.profiler.instrument.interceptor.InterceptorDefinitionFactory;
 import com.navercorp.pinpoint.profiler.interceptor.factory.ExceptionHandlerFactory;
@@ -64,7 +65,8 @@ public class ASMClassTest {
     private final InstrumentContext pluginContext = mock(InstrumentContext.class);
 
     private final ExceptionHandlerFactory exceptionHandlerFactory = new ExceptionHandlerFactory(false);
-    private final ObjectBinderFactory objectBinderFactory = new ObjectBinderFactory(profilerConfig, traceContextProvider, dataSourceMonitorRegistryService, apiMetaDataService, exceptionHandlerFactory);
+    private final RequestRecorderFactory requestRecorderFactory = mock(RequestRecorderFactory.class);
+    private final ObjectBinderFactory objectBinderFactory = new ObjectBinderFactory(profilerConfig, traceContextProvider, dataSourceMonitorRegistryService, apiMetaDataService, exceptionHandlerFactory, requestRecorderFactory);
     private final ScopeFactory scopeFactory = new ScopeFactory();
     private final InterceptorDefinitionFactory interceptorDefinitionFactory = new InterceptorDefinitionFactory();
 
@@ -618,6 +620,6 @@ public class ASMClassTest {
     private ASMClass getClass(final String targetClassName) throws Exception {
         ClassNode classNode = ASMClassNodeLoader.get(targetClassName);
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        return new ASMClass(engineComponent, pluginContext, classLoader, classNode);
+        return new ASMClass(engineComponent, pluginContext, classLoader, getClass().getProtectionDomain(), classNode);
     }
 }

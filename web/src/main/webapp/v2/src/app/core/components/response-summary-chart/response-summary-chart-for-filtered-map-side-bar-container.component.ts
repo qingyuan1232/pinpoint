@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ComponentFactoryResolver, Injector } from '@angular/core';
 import { Subject } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
@@ -36,7 +36,9 @@ export class ResponseSummaryChartForFilteredMapSideBarContainerComponent impleme
         private webAppSettingDataService: WebAppSettingDataService,
         private agentHistogramDataService: AgentHistogramDataService,
         private analyticsService: AnalyticsService,
-        private dynamicPopupService: DynamicPopupService
+        private dynamicPopupService: DynamicPopupService,
+        private componentFactoryResolver: ComponentFactoryResolver,
+        private injector: Injector
     ) {}
     ngOnInit() {
         this.chartColors = this.webAppSettingDataService.getColorByRequest();
@@ -55,8 +57,9 @@ export class ResponseSummaryChartForFilteredMapSideBarContainerComponent impleme
             this.selectedAgent = agent;
             if (this.selectedTarget) {
                 this.loadResponseSummaryChartData();
+            } else {
+                this.changeDetector.detectChanges();
             }
-            this.changeDetector.detectChanges();
         });
         this.storeHelperService.getServerMapData(this.unsubscribe).subscribe((serverMapData: ServerMapData) => {
             this.serverMapData = serverMapData;
@@ -71,12 +74,14 @@ export class ResponseSummaryChartForFilteredMapSideBarContainerComponent impleme
             })
         ).subscribe((target: ISelectedTarget) => {
             this.yMax = -1;
+            this.selectedAgent = '';
             this.selectedTarget = target;
             this.hiddenComponent = target.isMerged;
             if (target.isMerged === false) {
                 this.loadResponseSummaryChartData();
+            } else {
+                this.changeDetector.detectChanges();
             }
-            this.changeDetector.detectChanges();
         });
         this.storeHelperService.getServerMapTargetSelectedByList(this.unsubscribe).subscribe((target: any) => {
             this.yMax = -1;
@@ -151,6 +156,9 @@ export class ResponseSummaryChartForFilteredMapSideBarContainerComponent impleme
                 coordY: top + height / 2
             },
             component: HelpViewerPopupContainerComponent
+        }, {
+            resolver: this.componentFactoryResolver,
+            injector: this.injector
         });
     }
 }

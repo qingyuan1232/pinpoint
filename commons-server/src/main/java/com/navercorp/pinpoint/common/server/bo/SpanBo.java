@@ -17,6 +17,7 @@
 package com.navercorp.pinpoint.common.server.bo;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.navercorp.pinpoint.common.util.TransactionId;
@@ -50,11 +51,12 @@ public class SpanBo implements Event, BasicSpan {
     private String endPoint;
     private int apiId;
 
-    private List<AnnotationBo> annotationBoList = new ArrayList<AnnotationBo>();
+    private List<AnnotationBo> annotationBoList = new ArrayList<>();
     private short flag; // optional
     private int errCode;
 
-    private List<SpanEventBo> spanEventBoList = new ArrayList<SpanEventBo>();
+    private List<SpanEventBo> spanEventBoList = new ArrayList<>();
+    private List<SpanChunkBo> spanChunkBoList;
 
     private long collectorAcceptTime;
 
@@ -221,6 +223,20 @@ public class SpanBo implements Event, BasicSpan {
 
     public List<SpanEventBo> getSpanEventBoList() {
         return spanEventBoList;
+    }
+
+    public List<SpanChunkBo> getSpanChunkBoList() {
+        if (spanChunkBoList == null) {
+            spanChunkBoList = new ArrayList<>();
+        }
+        return spanChunkBoList;
+    }
+
+    public void addSpanChunkBo(SpanChunkBo asyncSpanBo) {
+        if (spanChunkBoList == null) {
+            this.spanChunkBoList = new ArrayList<>();
+        }
+        this.spanChunkBoList.add(asyncSpanBo);
     }
 
     public short getServiceType() {

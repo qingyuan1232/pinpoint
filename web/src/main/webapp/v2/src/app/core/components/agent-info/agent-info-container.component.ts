@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ComponentFactoryResolver, Injector } from '@angular/core';
 import { Observable, Subject, combineLatest } from 'rxjs';
-import { filter, tap, map, switchMap } from 'rxjs/operators';
+import { filter, tap, map, switchMap, takeUntil } from 'rxjs/operators';
 
 import { UrlPathId } from 'app/shared/models';
 import {
@@ -35,10 +35,16 @@ export class AgentInfoContainerComponent implements OnInit, OnDestroy {
         private storeHelperService: StoreHelperService,
         private agentInfoDataService: AgentInfoDataService,
         private dynamicPopupService: DynamicPopupService,
+        private componentFactoryResolver: ComponentFactoryResolver,
+        private injector: Injector
     ) {}
 
     ngOnInit() {
         this.urlAgentId$ = this.newUrlStateNotificationService.onUrlStateChange$.pipe(
+            takeUntil(this.unsubscribe),
+            filter((urlService: NewUrlStateNotificationService) => {
+                return urlService.isValueChanged(UrlPathId.AGENT_ID);
+            }),
             map((urlService: NewUrlStateNotificationService) => {
                 return urlService.getPathValue(UrlPathId.AGENT_ID);
             })
@@ -105,6 +111,9 @@ export class AgentInfoContainerComponent implements OnInit, OnDestroy {
             data,
             coord,
             component: ApplicationNameIssuePopupContainerComponent
+        }, {
+            resolver: this.componentFactoryResolver,
+            injector: this.injector
         });
     }
 }

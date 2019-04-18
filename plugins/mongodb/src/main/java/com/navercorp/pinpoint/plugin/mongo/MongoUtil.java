@@ -14,20 +14,13 @@
  */
 package com.navercorp.pinpoint.plugin.mongo;
 
-import com.mongodb.BasicDBObject;
 import com.mongodb.WriteConcern;
 import com.navercorp.pinpoint.bootstrap.context.SpanEventRecorder;
 import com.navercorp.pinpoint.common.util.StringStringValue;
-import org.bson.BsonDocument;
-import org.bson.BsonWriter;
-import org.bson.Document;
-import org.bson.json.JsonWriter;
+import org.bson.BsonType;
 
-import java.io.StringWriter;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author Roy Kim
@@ -35,9 +28,21 @@ import java.util.Map;
 public final class MongoUtil {
 
     public static final String SEPARATOR = ",";
-    private static MongoWriteConcernMapper mongoWriteConcernMapper = new MongoWriteConcernMapper();
+    private static final MongoWriteConcernMapper mongoWriteConcernMapper = new MongoWriteConcernMapper();
+
+    private static final boolean decimal128Enabled = decimal128Enabled();
 
     private MongoUtil() {
+    }
+
+    //since Mongo Java Driver 3.4
+    private static boolean decimal128Enabled() {
+        for (BsonType bsonType : BsonType.values()) {
+            if (bsonType.name().equalsIgnoreCase("DECIMAL128")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void recordMongoCollection(SpanEventRecorder recorder, String collectionName, String readPreferenceOrWriteConcern) {
@@ -50,84 +55,36 @@ public final class MongoUtil {
         return mongoWriteConcernMapper.getName(writeConcern);
     }
 
-    public static void recordParsedBson(SpanEventRecorder recorder, StringStringValue stringStringValue) {
-        if (stringStringValue != null) {
+    public static void recordParsedBson(SpanEventRecorder recorder, NormalizedBson normalizedBson) {
+        if (normalizedBson != null) {
+            StringStringValue stringStringValue = new StringStringValue(normalizedBson.getNormalizedBson(), normalizedBson.getParameter());
             recorder.recordAttribute(MongoConstants.MONGO_JSON_DATA, stringStringValue);
         }
     }
 
-    private static Map<String, ?> getBsonKeyValueMap(Object bson) {
-        if (bson instanceof BasicDBObject) {
-            return (BasicDBObject) bson;
-        } else if (bson instanceof BsonDocument) {
-            return (BsonDocument) bson;
-        } else if (bson instanceof Document) {
-            return (Document) bson;
-        } else {
-            return null;
-        }
-        //TODO leave comments for further use
-//        if(arg instanceof BsonDocumentWrapper) {
-//            bson.append(arg.toString());
-//        }
-//        if(arg instanceof CommandResult) {
-//            bson.append(arg.toString());
-//        }
-//        if(arg instanceof RawBsonDocument) {
-//            bson.append(arg.toString());
-//        }
-    }
-
-    public static StringStringValue parseBson(Object[] args, boolean traceBsonBindValue) {
+    public static NormalizedBson parseBson(Object[] args, boolean traceBsonBindValue) {
 
         if (args == null) {
             return null;
         }
 
-        final List<String> parsedBson = new ArrayList<String>(2);
-        final List<String> parameter = new ArrayList<String>(2);
+        final List<String> parsedJson = new ArrayList<String>(2);
+        final List<String> jsonParameter = new ArrayList<String>(16);
 
         for (Object arg : args) {
 
-            final Map<String, ?> map = getBsonKeyValueMap(arg);
-            if (map == null) {
-                continue;
+            WriteContext writeContext = new WriteContext(jsonParameter, decimal128Enabled, traceBsonBindValue);
+
+            String documentString = writeContext.parse(arg);
+
+            if(!documentString.equals(WriteContext.UNTRACED)) {
+                parsedJson.add(documentString);
             }
-
-            final Writer writer = new StringWriter();
-            final BsonWriter bsonWriter = new JsonWriter(writer);
-
-            bsonWriter.writeStartDocument();
-            for (Map.Entry<String, ?> entry : map.entrySet()) {
-
-                bsonWriter.writeName(entry.getKey());
-                bsonWriter.writeString("?");
-
-                if (traceBsonBindValue) {
-                    final Object value = entry.getValue();
-                    String strValue = toStringValue(value);
-                    parameter.add(strValue);
-                }
-            }
-            bsonWriter.writeEndDocument();
-            bsonWriter.flush();
-            String documentString = writer.toString();
-
-            parsedBson.add(documentString);
-
         }
-        String parsedBsonString = StringJoiner.join(parsedBson, SEPARATOR);
-        String parameterString = StringJoiner.join(parameter, SEPARATOR);
-        return new StringStringValue(parsedBsonString, parameterString);
-    }
 
-
-    private static String toStringValue(Object value) {
-        if (value instanceof String) {
-            return "\"" + value +"\"";
-        } else {
-            return String.valueOf(value);
-        }
+        String parsedJsonString = StringJoiner.join(parsedJson, SEPARATOR);
+        String jsonParameterString = StringJoiner.join(jsonParameter, SEPARATOR);
+        return new NormalizedBson(parsedJsonString, jsonParameterString);
     }
 }
 
